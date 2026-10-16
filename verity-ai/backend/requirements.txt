@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.6
+pydantic-settings>=2.2
+anthropic>=0.40  # optional: only used when VERITY_LLM_PROVIDER=anthropic
+pytest>=8
+httpx>=0.27

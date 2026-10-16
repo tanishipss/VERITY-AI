@@ -62,7 +62,12 @@ export function ReportView({ report, onSave, saved, onCompare }: { report: Repor
         </div>
       </div>
 
-      {x.status === "partial" && (
+      {report.demo && (
+        <div className="banner caution" role="note">
+          <strong>Demo data.</strong> This is a built-in example, not a live analysis of any page.
+        </div>
+      )}
+      {x.status === "partial" && !report.demo && (
         <div className="banner caution" role="status">Partial result: the AI explanation step was unavailable, so only basic checks ran.</div>
       )}
       {x.status === "unsupported" && (
@@ -121,7 +126,7 @@ export function ReportView({ report, onSave, saved, onCompare }: { report: Repor
       <div className="row wrap">
         <button className="secondary" onClick={onCompare}>Compare</button>
         <button className="secondary" onClick={copy}>{copied ? "Copied" : "Copy report"}</button>
-        <button className="secondary" onClick={onSave} disabled={saved}>{saved ? "Saved locally" : "Save locally"}</button>
+        <button className="secondary" onClick={onSave} disabled={saved || report.demo}>{saved ? "Saved locally" : "Save locally"}</button>
       </div>
       <div aria-live="polite" className="sr-only">{copied ? "Report copied" : ""}</div>
     </div>

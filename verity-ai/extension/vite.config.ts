@@ -12,6 +12,8 @@ export default defineConfig({
       input: {
         popup: resolve(__dirname, "popup.html"),
         background: resolve(__dirname, "src/background/index.ts"),
+        // Injected as a classic script on user action; must not share chunks with other entries.
+        content: resolve(__dirname, "src/content/entry.ts"),
       },
       output: {
         entryFileNames: "[name].js",

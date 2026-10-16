@@ -1,3 +1,5 @@
+import type { StructuredOffer } from "../extraction/schema";
+
 export type Period =
   | "one_time" | "first_month" | "monthly" | "monthly_after_intro" | "yearly" | "unspecified";
 export type Severity = "important" | "caution" | "info";
@@ -57,19 +59,27 @@ export interface AnalyzeResponse {
 export interface Extraction {
   page: PagePayload;
   evidence: Evidence[];
+  /** Evidence id -> selector of the element the text came from. Never sent to the service. */
+  sources?: Record<string, string>;
+  /** Structured, normalized offer data (see src/extraction). Local to the extension. */
+  offer?: StructuredOffer;
 }
 
 export interface Report {
   id: string;
+  /** True for built-in sample reports; never a live analysis. */
+  demo?: boolean;
   analyzedAt: string;
   url: string;
   evidence: Evidence[];
   result: AnalyzeResponse;
 }
 
-export type ErrorCode = "unsupported_page" | "extraction_failed" | "timeout" | "rate_limited" | "network" | "server";
+export type ErrorCode = "unsupported_page" | "permission_denied" | "extraction_failed" | "timeout" | "rate_limited" | "network" | "server";
 
 export type CheckMessage = { type: "verity:check"; tabId: number };
 export type CheckReply =
   | { ok: true; report: Report }
   | { ok: false; error: ErrorCode; message: string };
+
+export type ProgressMessage = { type: "verity:progress"; stage: "reading" | "analyzing" };

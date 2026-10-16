@@ -3,11 +3,35 @@
   "name": "Verity AI",
   "version": "0.1.0",
   "description": "Understand what you're agreeing to before you buy or subscribe. You choose when to check a page.",
-  "action": { "default_popup": "popup.html", "default_title": "Verity: check this offer" },
-  "background": { "service_worker": "background.js", "type": "module" },
-  "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["http://localhost:8000/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Verity: check this offer",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   }
 }

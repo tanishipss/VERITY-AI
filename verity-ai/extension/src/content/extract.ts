@@ -10,7 +10,7 @@ export function extractPage(): Extraction {
   const MAX_CHARS = 400;
   const price = /(?:US\$|A\$|C\$|[$€£₹¥])\s?\d|\d\s?(?:USD|EUR|GBP|INR|JPY|CAD|AUD)\b/i;
   const terms =
-    /cancel|refund|renew|trial|per month|\/\s?(?:mo|month|yr|year)|monthly|annual|billed|commitment|minimum|shipping|delivery|fee|tax|subscription|money[- ]back|return/i;
+    /cancel|refund|renew|trial|per month|\/\s?(?:mo|month|yr|year)|monthly|annual|billed|commitment|minimum|shipping|delivery|fee|tax|\bvat\b|\bgst\b|subscription|money[- ]back|return/i;
   const skipTags = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "INPUT", "TEXTAREA", "SELECT", "OPTION", "IFRAME", "SVG", "CANVAS"]);
   const sensitive = /card|cvv|cvc|password|iban|routing|account number|security code/i;
 
@@ -19,7 +19,20 @@ export function extractPage(): Extraction {
     return s.display !== "none" && s.visibility !== "hidden" && s.opacity !== "0";
   };
 
+  const selectorOf = (el: Element): string => {
+    const parts: string[] = [];
+    let cur: Element | null = el;
+    while (cur && cur !== document.body && parts.length < 3) {
+      const tag = cur.tagName.toLowerCase();
+      parts.unshift(cur.id ? `${tag}#${CSS.escape(cur.id)}` : tag);
+      if (cur.id) break;
+      cur = cur.parentElement;
+    }
+    return parts.join(" > ");
+  };
+
   const seen = new Set<string>();
+  const sources: Record<string, string> = {};
   const evidence: { id: string; kind: "visible_text"; text: string }[] = [];
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, {
     acceptNode(node) {
@@ -44,7 +57,9 @@ export function extractPage(): Extraction {
         const clipped = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
         if (!seen.has(clipped)) {
           seen.add(clipped);
-          evidence.push({ id: `ev_${String(evidence.length + 1).padStart(3, "0")}`, kind: "visible_text", text: clipped });
+          const id = `ev_${String(evidence.length + 1).padStart(3, "0")}`;
+          evidence.push({ id, kind: "visible_text", text: clipped });
+          sources[id] = selectorOf(el);
         }
       }
     }
@@ -74,5 +89,6 @@ export function extractPage(): Extraction {
       page_type_hint: subscription ? "subscription" : product ? "product" : "unknown",
     },
     evidence,
+    sources,
   };
 }

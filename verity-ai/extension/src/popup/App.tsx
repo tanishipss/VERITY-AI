@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { CompareView } from "../components/CompareView";
 import { ReportView } from "../components/ReportView";
+import { DEMO_SCENARIOS } from "../fixtures/demo";
 import { API_BASE } from "../services/api";
 import { formatMoney } from "../services/format";
 import { addRecent, clearRecent, clearReports, deleteReport, giveConsent, hasConsent, listRecent, listReports, revokeConsent, saveReport } from "../services/storage";
-import type { CheckReply, Report } from "../types";
+import type { CheckReply, ProgressMessage, Report } from "../types";
 
 type Tab = "check" | "saved" | "settings";
 type State =
   | { s: "idle" }
-  | { s: "loading" }
+  | { s: "loading"; stage: ProgressMessage["stage"] | "starting" }
   | { s: "error"; message: string }
   | { s: "report"; report: Report };
 
@@ -31,7 +32,17 @@ function Consent({ onAccept }: { onAccept: () => void }) {
   );
 }
 
-function Check({ state, onCheck, tabInfo }: { state: State; onCheck: () => void; tabInfo: { title: string; host: string } | null; }) {
+type TabInfo = { title: string; host: string; supported: boolean };
+
+const STAGES: { key: ProgressMessage["stage"]; label: string }[] = [
+  { key: "reading", label: "Reading visible price and terms text" },
+  { key: "analyzing", label: "Analyzing the offer details" },
+];
+
+function Check({ state, onCheck, onDemo, tabInfo }: { state: State; onCheck: () => void; onDemo: (r: Report) => void; tabInfo: TabInfo | null }) {
+  const unsupported = tabInfo !== null && !tabInfo.supported;
+  const loading = state.s === "loading";
+  const current = loading ? STAGES.findIndex((x) => x.key === state.stage) : -1;
   return (
     <div className="app" style={{ padding: 0 }}>
       <div className="card">
@@ -39,15 +50,39 @@ function Check({ state, onCheck, tabInfo }: { state: State; onCheck: () => void;
         <h3>{tabInfo?.title || "Untitled page"}</h3>
         <div className="muted">{tabInfo?.host}</div>
       </div>
+      {unsupported && (
+        <div className="banner caution" role="status">
+          <strong>This page can’t be checked.</strong> Verity only works on regular web pages (http or https). Browser pages,
+          the Chrome Web Store and local files aren’t supported. No analysis was run.
+        </div>
+      )}
       {state.s === "error" && <div className="banner error" role="alert">{state.message}</div>}
-      <button className="primary" onClick={onCheck} disabled={state.s === "loading"}>
-        {state.s === "loading" ? "Checking…" : state.s === "error" ? "Retry" : "Check this offer"}
+      <button className="primary" onClick={onCheck} disabled={loading || unsupported}>
+        {loading ? "Checking…" : state.s === "error" ? "Retry" : "Check this offer"}
       </button>
-      {state.s === "loading" ? (
-        <div className="row" role="status"><div className="spinner" aria-hidden /> <span>Reading and analyzing offer details…</span></div>
+      {loading ? (
+        <div role="status" aria-live="polite">
+          <ol className="stages">
+            {STAGES.map((st, i) => (
+              <li key={st.key} aria-current={i === current ? "step" : undefined}>
+                <span aria-hidden>{i < current ? "✓" : i === current ? "●" : "○"}</span> {st.label}
+                <span className="sr-only">{i < current ? " (done)" : i === current ? " (in progress)" : " (waiting)"}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
       ) : (
         <p className="muted">Verity checks information available on this page; it may not see every checkout fee or term.</p>
       )}
+      <details>
+        <summary>See an example report</summary>
+        <p className="muted">These are built-in demos, not live analyses.</p>
+        <div className="row wrap">
+          {DEMO_SCENARIOS.map((d) => (
+            <button key={d.key} className="secondary" onClick={() => onDemo(d.report)}>{d.label}</button>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }
@@ -103,7 +138,7 @@ export function App() {
   const [reports, setReports] = useState<Report[]>([]);
   const [comparing, setComparing] = useState(false);
   const [recent, setRecent] = useState<Report[]>([]);
-  const [tabInfo, setTabInfo] = useState<{ title: string; host: string } | null>(null);
+  const [tabInfo, setTabInfo] = useState<TabInfo | null>(null);
 
   const refresh = useCallback(async () => {
     setReports(await listReports());
@@ -117,12 +152,17 @@ export function App() {
       if (!t) return;
       let host = "";
       try { host = new URL(t.url ?? "").hostname; } catch { /* non-web page */ }
-      setTabInfo({ title: t.title ?? "", host });
+      setTabInfo({ title: t.title ?? "", host, supported: /^https?:\/\//i.test(t.url ?? "") });
     });
+    const onProgress = (msg: ProgressMessage) => {
+      if (msg?.type === "verity:progress") setState((cur) => (cur.s === "loading" ? { s: "loading", stage: msg.stage } : cur));
+    };
+    chrome.runtime.onMessage.addListener(onProgress);
+    return () => chrome.runtime.onMessage.removeListener(onProgress);
   }, [refresh]);
 
   const check = async () => {
-    setState({ s: "loading" });
+    setState({ s: "loading", stage: "starting" });
     const [t] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!t?.id) return setState({ s: "error", message: "No active tab found." });
     try {
@@ -162,7 +202,7 @@ export function App() {
             onSave={async () => { await saveReport(state.report); refresh(); }} />
           <button className="link" onClick={() => setState({ s: "idle" })}>Check again</button>
         </>
-      ) : <Check state={state} onCheck={check} tabInfo={tabInfo} />)}
+      ) : <Check state={state} onCheck={check} onDemo={(r) => setState({ s: "report", report: r })} tabInfo={tabInfo} />)}
 
       {tab === "saved" && (
         <Saved

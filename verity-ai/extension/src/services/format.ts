@@ -16,7 +16,7 @@ export function reportToText(r: Report): string {
   const { result: x } = r;
   const c = x.cost_summary;
   const lines = [
-    `Verity report: ${x.offer.name ?? x.offer.merchant ?? r.url}`,
+    `${r.demo ? "[DEMO DATA - not a live analysis] " : ""}Verity report: ${x.offer.name ?? x.offer.merchant ?? r.url}`,
     `URL: ${r.url}`,
     `Checked: ${new Date(r.analyzedAt).toLocaleString()}`,
     "",

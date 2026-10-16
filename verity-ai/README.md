@@ -20,7 +20,8 @@ To use a real model: copy `.env.example` to `backend/.env`, set `VERITY_LLM_PROV
 cd extension
 npm install
 npm run build        # typecheck + build to extension/dist
-npm test             # 9 tests (extraction, report text, compare)
+npm test             # 39 tests (price parsing, extraction fixtures, report text, compare)
+npm run typecheck
 ```
 Chrome → `chrome://extensions` → Developer mode → Load unpacked → pick `extension/dist`.
 Open a pricing/product page, click the Verity icon, accept the disclosure, click **Check this offer**.
@@ -36,9 +37,23 @@ Open a pricing/product page, click the Verity icon, accept the disclosure, click
 | Evidence validator (drops uncited claims and "scam/fraud/safe" verdict wording) | Done |
 | Consent screen, privacy/limitations screen, privacy-aware logs, URL scheme checks, size + rate limits | Done |
 
+## Extraction layer (extension/src/extraction)
+On click, `content.js` (a standalone classic script, injected with `activeTab` + `scripting`) reads visible price/terms
+text and returns, besides the evidence sent for analysis, a local `StructuredOffer` (`verity.extraction/1`):
+prices with currency, cadence (one-time / monthly / annual / other) and role (introductory / renewal / regular),
+trial, billing interval, renewal, shipping, setup/mandatory fees, taxes, cancellation, refund, auto-renewal and
+minimum commitment. Every claim carries a short exact quote, source (`json_ld`, `meta_tags`, `visible_text`) and a
+selector. Unstated fields stay `unknown`; several different prices are all kept and flagged `ambiguous_prices`.
+`confidence` rates extraction quality only, never the merchant. The structured offer is not stored or sent anywhere.
+
+Extraction limits: heuristics are English-centric for terms (prices handle many number formats); bare `$`/`¥` keep
+currency unknown; text in iframes, canvases, images or behind clicks isn't read; dynamic pages get one 0.9 s retry;
+Chrome blocks `chrome://`, the Web Store and file URLs. Demo reports (popup → "See an example report") are labelled
+built-in samples.
+
 ## Known gaps / next steps
 - Extraction is heuristic (price/terms keyword blocks); it needs the evaluation corpus from the PRD validation plan before any accuracy claims.
 - `host_permissions` is `localhost:8000` only; change it and `VITE_API_BASE` when you deploy the API.
 - Rate limiting is in-memory (single process). Use a shared store behind multiple workers.
-- No E2E browser test yet, and no icons in the manifest.
+- No E2E browser test yet. Icons are simple generated placeholders (`public/icons`).
 - Compare works with your last 3 checks (kept in memory via `chrome.storage.session`, erased when the browser closes) or saved reports. It compares two offers only.

@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Verity AI",
+  "version": "0.1.0",
+  "description": "Understand what you're agreeing to before you buy or subscribe. You choose when to check a page.",
+  "action": { "default_popup": "popup.html", "default_title": "Verity: check this offer" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://localhost:8000/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
